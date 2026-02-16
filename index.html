@@ -113,9 +113,9 @@ input.addEventListener("input", () => {
             unlocked = true;
             checkOrientation();
             fadeInMusic();
-            explodeText2026();
-            special2026Done = true;
             startFireworks();
+            // Thêm code tự động full screen sau khi nhập đúng mật khẩu
+            document.documentElement.requestFullscreen().catch(err => console.log('Fullscreen request failed:', err));
         } else {
             error.style.display = "block";
             input.value = "";
@@ -212,7 +212,7 @@ function explodeText2026() {
     offCtx.textBaseline = "middle";
 
     // CHÍNH GIỮA
-    offCtx.fillText("2026", canvas.width/2, canvas.height/2);
+    offCtx.fillText("2026", canvas.width/2, canvas.height/2 - 250);
 
     const imageData = offCtx.getImageData(0,0,canvas.width,canvas.height);
     const data = imageData.data;
@@ -276,6 +276,7 @@ function animate() {
 
 function startFireworks() {
     resize();
+    explodeText2026();  // Di chuyển vào đây để đảm bảo canvas đã resize trước khi tạo particles
     setInterval(explode,700);
     animate();
 }
