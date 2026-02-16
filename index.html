@@ -91,6 +91,12 @@ const bgMusic = document.getElementById("bgMusic");
 
 let unlocked = false;
 let special2026Done = false;
+let textParticlesCreated = false;  // Flag để tránh recreate liên tục
+let lastCanvasWidth = 0;
+let lastCanvasHeight = 0;
+
+// Kiểm tra nếu là mobile (đơn giản, dựa trên user agent)
+const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
 /* ORIENTATION */
 function checkOrientation() {
@@ -114,8 +120,12 @@ input.addEventListener("input", () => {
             checkOrientation();
             fadeInMusic();
             startFireworks();
-            // Thêm code tự động full screen sau khi nhập đúng mật khẩu
-            document.documentElement.requestFullscreen().catch(err => console.log('Fullscreen request failed:', err));
+            // Chỉ request full screen trên desktop, bỏ trên mobile để tránh lỗi
+            if (!isMobile) {
+                document.documentElement.requestFullscreen().catch(err => console.log('Fullscreen request failed:', err));
+            } else {
+                console.log('Skipping fullscreen on mobile');
+            }
         } else {
             error.style.display = "block";
             input.value = "";
@@ -126,7 +136,7 @@ input.addEventListener("input", () => {
 /* MUSIC FADE IN */
 function fadeInMusic() {
     bgMusic.volume = 0;
-    bgMusic.play().catch(()=>{});
+    bgMusic.play().catch(err => console.log('Audio play failed:', err));
     let vol = 0;
     const fade = setInterval(() => {
         if (vol < 0.6) {
@@ -142,8 +152,20 @@ function fadeInMusic() {
 const ctx = canvas.getContext("2d");
 
 function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const newWidth = window.innerWidth;
+    const newHeight = window.innerHeight;
+    console.log('Resize triggered: old', lastCanvasWidth, lastCanvasHeight, 'new', newWidth, newHeight);  // Debug log
+    canvas.width = newWidth;
+    canvas.height = newHeight;
+    // Chỉ recreate text particles nếu kích thước thay đổi và đã unlock
+    if (unlocked && (newWidth !== lastCanvasWidth || newHeight !== lastCanvasHeight)) {
+        lastCanvasWidth = newWidth;
+        lastCanvasHeight = newHeight;
+        if (textParticlesCreated) {
+            console.log('Recreating text particles due to resize');  // Debug log
+            explodeText2026();
+        }
+    }
 }
 window.addEventListener("resize", resize);
 
@@ -156,7 +178,7 @@ class Particle {
         this.radius = Math.random() * 2 + 1;
         this.vx = vx !== null ? vx : (Math.random() - 0.5) * 6;
         this.vy = vy !== null ? vy : (Math.random() - 0.5) * 6;
-        this.life = 160;
+        this.life = isMobile ? 100 : 160;  // Giảm life trên mobile để particles tồn tại lâu hơn
     }
     update() {
         this.x += this.vx;
@@ -173,6 +195,7 @@ class Particle {
 }
 
 let particles = [];
+let textParticles = [];  // Array riêng cho text particles
 const colors = ["red","yellow","cyan","lime","magenta","orange","white"];
 let textAlpha = 0;
 
@@ -182,7 +205,8 @@ function explode() {
     const y = Math.random() * canvas.height * 0.5;
     const color = colors[Math.floor(Math.random()*colors.length)];
 
-    for (let i=0;i<100;i++) {
+    // Giảm số particles từ 100 xuống 50 để tối ưu mobile
+    for (let i=0;i<50;i++) {
         particles.push(new Particle(x,y,color));
     }
 
@@ -193,11 +217,13 @@ function explode() {
 function playBoom() {
     const boom = new Audio("boom.mp4");
     boom.volume = 0.8;
-    boom.play().catch(()=>{});
+    boom.play().catch(err => console.log('Boom audio failed:', err));
 }
 
 /* FIREWORK 2026 CHÍNH GIỮA */
 function explodeText2026() {
+    // Xóa text particles cũ trước khi tạo mới
+    textParticles = [];
 
     const offCanvas = document.createElement("canvas");
     const offCtx = offCanvas.getContext("2d");
@@ -217,10 +243,9 @@ function explodeText2026() {
     const imageData = offCtx.getImageData(0,0,canvas.width,canvas.height);
     const data = imageData.data;
 
-    let textParticles = [];
-
-    for (let y = 0; y < canvas.height; y += 5) {
-        for (let x = 0; x < canvas.width; x += 5) {
+    // Tăng step từ 5 lên 10 để giảm số particles (tối ưu mobile)
+    for (let y = 0; y < canvas.height; y += 10) {
+        for (let x = 0; x < canvas.width; x += 10) {
             const index = (y * canvas.width + x) * 4;
             if (data[index + 3] > 128) {
                 const color = colors[Math.floor(Math.random()*colors.length)];
@@ -230,6 +255,8 @@ function explodeText2026() {
     }
 
     particles.push(...textParticles);
+    textParticlesCreated = true;
+    console.log('Text particles created:', textParticles.length);  // Debug log
 
     setTimeout(() => {
         playBoom();
@@ -276,7 +303,7 @@ function animate() {
 
 function startFireworks() {
     resize();
-    explodeText2026();  // Di chuyển vào đây để đảm bảo canvas đã resize trước khi tạo particles
+    setTimeout(() => explodeText2026(), 100);  // Delay nhỏ để đảm bảo canvas ổn định
     setInterval(explode,700);
     animate();
 }
