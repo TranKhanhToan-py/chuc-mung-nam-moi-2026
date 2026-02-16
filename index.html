@@ -17,6 +17,7 @@ html, body {
 
 canvas { display: none; }
 
+/* ===== LOCK SCREEN ===== */
 #lockScreen {
     position: fixed;
     inset: 0;
@@ -43,6 +44,20 @@ canvas { display: none; }
     color: red;
     display: none;
 }
+
+/* ===== ROTATE NOTICE ===== */
+#rotateNotice {
+    position: fixed;
+    inset: 0;
+    background: black;
+    color: white;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 24px;
+    z-index: 9999;
+}
 </style>
 </head>
 
@@ -52,6 +67,10 @@ canvas { display: none; }
     <h1>Nhập pass : 160226</h1>
     <input id="password" type="password" maxlength="6">
     <div id="error">Sai mật khẩu</div>
+</div>
+
+<div id="rotateNotice">
+    <div>Vui lòng xoay ngang màn hình</div>
 </div>
 
 <canvas id="canvas"></canvas>
@@ -71,15 +90,35 @@ const input = document.getElementById("password");
 const error = document.getElementById("error");
 const lockScreen = document.getElementById("lockScreen");
 const canvas = document.getElementById("canvas");
+const rotateNotice = document.getElementById("rotateNotice");
 const boomTemplate = document.getElementById("boomSound");
 const bgMusic = document.getElementById("bgMusic");
 
+let unlocked = false;
+
+/* ===== CHECK ORIENTATION ===== */
+function checkOrientation() {
+    if (window.innerHeight > window.innerWidth) {
+        rotateNotice.style.display = "flex";
+        canvas.style.display = "none";
+    } else {
+        rotateNotice.style.display = "none";
+        if (unlocked) {
+            canvas.style.display = "block";
+        }
+    }
+}
+
+window.addEventListener("resize", checkOrientation);
+window.addEventListener("orientationchange", checkOrientation);
+
+/* ===== PASSWORD ===== */
 input.addEventListener("input", () => {
     if (input.value.length === 6) {
         if (input.value === CORRECT_PASSWORD) {
             lockScreen.style.display = "none";
-            canvas.style.display = "block";
-
+            unlocked = true;
+            checkOrientation();
             fadeInMusic();
             startFireworks();
         } else {
@@ -103,11 +142,6 @@ function fadeInMusic() {
         }
     }, 100);
 }
-
-bgMusic.addEventListener("ended", () => {
-    bgMusic.currentTime = 0;
-    bgMusic.play();
-});
 
 /* ===== CANVAS ===== */
 const ctx = canvas.getContext("2d");
@@ -167,20 +201,21 @@ function explode() {
     }
 }
 
-/* ===== NEON TEXT ===== */
+/* ===== NEON TEXT (RESPONSIVE) ===== */
 function drawText() {
     if (textAlpha < 1) textAlpha += 0.01;
 
     glowPulse += 0.05;
     const glowSize = 20 + Math.sin(glowPulse) * 10;
 
+    let fontSize = Math.min(canvas.width * 0.08, 70);
+
     ctx.save();
     ctx.globalAlpha = textAlpha;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = "bold 70px Arial";
+    ctx.font = "bold " + fontSize + "px Arial";
 
-    // Neon glow layers
     ctx.shadowColor = "#00ffff";
     ctx.shadowBlur = glowSize;
     ctx.fillStyle = "#ffffff";
@@ -212,6 +247,8 @@ function startFireworks() {
     setInterval(explode,700);
     animate();
 }
+
+checkOrientation();
 </script>
 
 </body>
